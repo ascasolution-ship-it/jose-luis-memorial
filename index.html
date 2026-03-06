@@ -523,7 +523,7 @@
     <div class="versiculo-ref">— Mateo 5:8</div>
   </div>
 
-  <!-- servicio funebre -->
+  <!-- Servicio Funebre -->
   <div class="divider" style="margin:8px 0 28px;">
     <div class="divider-line"></div>
     <span class="divider-star">✦</span>
@@ -546,11 +546,11 @@
       </div>
     </div>
 
-    <!-- Servicio fúnebre -->
+    <!-- Misa -->
     <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid rgba(200,169,110,.15);">
       <div style="font-size:1.5rem;flex-shrink:0;margin-top:2px;">⛪</div>
       <div>
-        <div style="font-size:.78rem;letter-spacing:2px;text-transform:uppercase;color:#c8a96e;margin-bottom:4px;">servicio funebre</div>
+        <div style="font-size:.78rem;letter-spacing:2px;text-transform:uppercase;color:#c8a96e;margin-bottom:4px;">Misa</div>
         <div style="font-size:1rem;color:#f0e6d0;margin-bottom:4px;">10:00 a.m.</div>
         <div style="font-size:.93rem;color:#cfc8b8;">Funeraria de Glen Rose, TX</div>
         <a href="https://maps.google.com/?q=Glen+Rose+Funeral+Home+Glen+Rose+TX" target="_blank" style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:.8rem;color:#c8a96e;text-decoration:none;background:rgba(200,169,110,.1);border:1px solid rgba(200,169,110,.3);border-radius:6px;padding:5px 12px;">
@@ -564,7 +564,7 @@
       <div style="font-size:1.5rem;flex-shrink:0;margin-top:2px;">🍽️</div>
       <div>
         <div style="font-size:.78rem;letter-spacing:2px;text-transform:uppercase;color:#c8a96e;margin-bottom:4px;">Convivio</div>
-        <div style="font-size:1rem;color:#f0e6d0;margin-bottom:4px;">Después de la servicio funebre</div>
+        <div style="font-size:1rem;color:#f0e6d0;margin-bottom:4px;">Después de la Misa</div>
         <div style="font-size:.93rem;color:#cfc8b8;">Mama Mia Mexican Cuisine — Glen Rose, TX</div>
         <a href="https://maps.google.com/?q=Mama+Mia+Mexican+Cuisine+Glen+Rose+TX" target="_blank" style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:.8rem;color:#c8a96e;text-decoration:none;background:rgba(200,169,110,.1);border:1px solid rgba(200,169,110,.3);border-radius:6px;padding:5px 12px;">
           📍 Ver en el mapa
@@ -623,6 +623,23 @@
 </div>
 
 <script>
+  // --- Supabase config ---
+  const SUPA_URL = 'https://nywfslkotzbisachnudf.supabase.co';
+  const SUPA_KEY = 'sb_publishable_4RTAbfUmnwWvoYs-rKLwaQ_S9hF2Una';
+
+  async function supaFetch(path, options = {}) {
+    const res = await fetch(SUPA_URL + path, {
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': 'Bearer ' + SUPA_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': options.prefer || ''
+      },
+      ...options
+    });
+    return res;
+  }
+
   // --- Estrellas ---
   const starsEl = document.getElementById('stars');
   for (let i = 0; i < 55; i++) {
@@ -632,26 +649,29 @@
     starsEl.appendChild(s);
   }
 
-  // --- Condolencias ---
-  const condolencias = [
-    { id: 1, nombre: "La Familia Herrera", mensaje: "Te llevamos en el corazón para siempre, José Luis. Que descanses en paz.", fecha: "20 Feb 2026" },
-    { id: 2, nombre: "Un Amigo del Alma",  mensaje: "Fuiste luz en cada momento que compartimos. Descansa en paz, hermano.",   fecha: "21 Feb 2026" },
-  ];
+  function esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
 
-  function renderCondolencias() {
+  function formatFecha(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function renderCondolencias(lista) {
     const list = document.getElementById('cond-list');
     list.innerHTML = '';
-    condolencias.forEach((c, i) => {
+    lista.forEach((c, i) => {
       const div = document.createElement('div');
       div.className = 'cond-card';
       div.style.animationDelay = `${i * 0.07}s`;
       div.innerHTML = `
         <div class="cond-card-header">
           <div style="display:flex;align-items:center;">
-            <div class="cond-avatar">${c.nombre.charAt(0).toUpperCase()}</div>
+            <div class="cond-avatar">${esc(c.nombre.charAt(0).toUpperCase())}</div>
             <div>
               <div class="cond-name">${esc(c.nombre)}</div>
-              <div class="cond-date">${esc(c.fecha)}</div>
+              <div class="cond-date">${esc(formatFecha(c.fecha))}</div>
             </div>
           </div>
           <span>🕯️</span>
@@ -662,8 +682,16 @@
     });
   }
 
-  function esc(str) {
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  async function cargarCondolencias() {
+    try {
+      const res = await supaFetch('/rest/v1/condolencias?select=*&order=fecha.asc');
+      if (res.ok) {
+        const data = await res.json();
+        renderCondolencias(data);
+      }
+    } catch(e) {
+      console.error('Error cargando condolencias:', e);
+    }
   }
 
   function mostrarFormulario() {
@@ -682,23 +710,35 @@
     document.getElementById('form-fields').style.display = 'block';
   }
 
-  function enviarCondolencia() {
+  async function enviarCondolencia() {
     const nombre = document.getElementById('inp-nombre').value.trim();
     const mensaje = document.getElementById('inp-msg').value.trim();
     if (!nombre || !mensaje) return;
 
-    const fecha = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
-    condolencias.push({ id: Date.now(), nombre, mensaje, fecha });
-    renderCondolencias();
+    try {
+      const res = await supaFetch('/rest/v1/condolencias', {
+        method: 'POST',
+        prefer: 'return=minimal',
+        body: JSON.stringify({ nombre, mensaje })
+      });
 
-    document.getElementById('form-fields').style.display = 'none';
-    document.getElementById('success-area').style.display = 'block';
-
-    setTimeout(ocultarFormulario, 3000);
+      if (res.ok) {
+        await cargarCondolencias();
+        document.getElementById('form-fields').style.display = 'none';
+        document.getElementById('success-area').style.display = 'block';
+        setTimeout(ocultarFormulario, 3000);
+      } else {
+        const err = await res.json();
+        alert('Error al enviar: ' + (err.message || 'Intenta de nuevo'));
+      }
+    } catch(e) {
+      alert('Error de conexión. Intenta de nuevo.');
+    }
   }
 
   // Contador de caracteres y validación
   document.addEventListener('DOMContentLoaded', function() {
+    cargarCondolencias();
     const msg = document.getElementById('inp-msg');
     const nombre = document.getElementById('inp-nombre');
     const btn = document.getElementById('btn-enviar');
@@ -716,5 +756,3 @@
 </script>
 </body>
 </html>
-
-
